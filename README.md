@@ -1,57 +1,69 @@
-# 🤖 Building Your First AI Chatbot with Groq
+# 🧠 Chatbot with Memory - Now it Remembers You
 
-I made this because after learning what an LLM is, the next question is obvious - okay but how do I actually talk to one with code? This is the simplest way to do it. No extra stuff. Just a working chatbot in under 20 lines of Python.
+In the last guide we built a basic chatbot. It worked but had one big problem - it forgot everything after every message. This guide fixes that. We add **memory** so the AI remembers the whole conversation.
+
+The only real change? One list called `chat_history`.
 
 ---
 
 ## Table of Contents
 
-1. [What are we building?](#what-are-we-building)
-2. [What you need first](#what-you-need-first)
+1. [What is the problem we are fixing?](#what-is-the-problem-we-are-fixing)
+2. [What changed from last time?](#what-changed-from-last-time)
 3. [The full code](#the-full-code)
 4. [Line by line - what each part does](#line-by-line---what-each-part-does)
-   - [Part 1 - Imports](#part-1---imports)
-   - [Part 2 - API Key setup](#part-2---api-key-setup)
-   - [Part 3 - The chat loop](#part-3---the-chat-loop)
-   - [Part 4 - Sending the message](#part-4---sending-the-message)
-5. [How it all flows](#how-it-all-flows)
-6. [Word List](#word-list)
+   - [Part 1 - chat_history list](#part-1---chat_history-list)
+   - [Part 2 - Adding your message](#part-2---adding-your-message)
+   - [Part 3 - Sending the full history](#part-3---sending-the-full-history)
+   - [Part 4 - Saving the bot reply](#part-4---saving-the-bot-reply)
+5. [How memory actually works](#how-memory-actually-works)
+6. [How it all flows](#how-it-all-flows)
+7. [Word List](#word-list)
 
 ---
 
-## What are we building?
+## What is the problem we are fixing?
 
-A simple chatbot that runs in your terminal. You type something. It replies. That is it.
-
-Under the hood it is using **Groq** - a platform that lets you call powerful AI models like LLaMA 3.3 through an API. Think of it like texting an AI - you send a message, it sends one back.
+The old chatbot sent only your current message to the AI every time. So the AI had no idea what happened before.
 
 ```mermaid
-flowchart LR
-    A["🧑 You type\n'What is Python?'"]:::blue --> B["🌐 Groq API\nsends your message to LLaMA 3.3"]:::purple --> C["🤖 AI replies\n'Python is a programming language...'"]:::green --> D["💻 Printed\nin your terminal"]:::teal
+flowchart TD
+    A["❌ Old chatbot - no memory"]:::label
 
+    A1["You: My name is Samad"]:::blue --> B1["Bot: Nice to meet you Samad!"]:::green
+    B1 --> A2["You: What is my name?"]:::blue --> B2["Bot: I don't know your name 🤔\nnobody told me"]:::red
+
+    classDef label fill:#3a0f0f,stroke:#ef4444,color:#fca5a5,font-weight:bold
     classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
-    classDef purple fill:#2d1b4e,stroke:#8b5cf6,color:#c4b5fd
     classDef green fill:#1a3a2a,stroke:#34d399,color:#6ee7b7
-    classDef teal fill:#0f3030,stroke:#2dd4bf,color:#99f6e4
+    classDef red fill:#3a0f0f,stroke:#ef4444,color:#fca5a5
+```
+
+The new chatbot saves everything and sends the full conversation every time.
+
+```mermaid
+flowchart TD
+    A["✅ New chatbot - with memory"]:::label
+
+    A1["You: My name is Samad"]:::blue --> B1["Bot: Nice to meet you Samad!"]:::green
+    B1 --> A2["You: What is my name?"]:::blue --> B2["Bot: Your name is Samad!"]:::green
+
+    classDef label fill:#1a3a2a,stroke:#34d399,color:#6ee7b7,font-weight:bold
+    classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
+    classDef green fill:#1a3a2a,stroke:#34d399,color:#6ee7b7
 ```
 
 ---
 
-## What you need first
+## What changed from last time?
 
-Before running the code you need two things installed and one account set up.
+Only 3 things changed. Everything else is exactly the same.
 
-**Install these with pip:**
-```bash
-pip install groq python-dotenv
-```
-
-**Create a `.env` file** in the same folder as your code and put this inside it:
-```
-GROQ_API_KEY=your_key_here
-```
-
-Get your free API key from [console.groq.com](https://console.groq.com). It takes two minutes.
+| What | Old code | New code |
+|------|----------|----------|
+| Chat history | did not exist | `chat_history = []` created |
+| Messages sent to API | only current message | full `chat_history` list |
+| Bot reply | printed and forgotten | saved into `chat_history` too |
 
 ---
 
@@ -62,13 +74,13 @@ from groq import Groq
 from dotenv import load_dotenv
 import os
 
-# Load environment variables
 load_dotenv()
 
-# Create client
 client = Groq(
     api_key=os.getenv("GROQ_API_KEY")
 )
+
+chat_history = []
 
 print("Chatbot Started (type 'exit' to quit)\n")
 
@@ -76,158 +88,186 @@ while True:
     user_input = input("You: ")
 
     if user_input.lower() == "exit":
-        print("Bot: Goodbye!")
         break
+
+    chat_history.append(
+        {
+            "role": "user",
+            "content": user_input
+        }
+    )
 
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "user",
-                "content": user_input
-            }
-        ]
+        messages=chat_history
     )
 
-    print("Bot:", response.choices[0].message.content)
+    bot_reply = response.choices[0].message.content
+
+    chat_history.append(
+        {
+            "role": "assistant",
+            "content": bot_reply
+        }
+    )
+
+    print("Bot:", bot_reply)
 ```
 
 ---
 
 ## Line by line - what each part does
 
-### Part 1 - Imports
+### Part 1 - chat_history list
 
 ```python
-from groq import Groq
-from dotenv import load_dotenv
-import os
+chat_history = []
 ```
 
-These three lines bring in the tools we need.
+This is the only new setup line. It creates an empty list before the loop starts.
 
-| Line | What it does |
-|------|-------------|
-| `from groq import Groq` | brings in the Groq library so we can talk to the AI |
-| `from dotenv import load_dotenv` | lets us read our secret API key from a file |
-| `import os` | lets Python read things from that file |
+This list will grow with every message - yours and the bot's. By the end of a conversation it looks like this:
 
-Think of imports like plugging in a charger before using your phone. You need them ready before anything else works.
+```python
+[
+    {"role": "user",      "content": "My name is Samad"},
+    {"role": "assistant", "content": "Nice to meet you Samad!"},
+    {"role": "user",      "content": "What is my name?"},
+    {"role": "assistant", "content": "Your name is Samad!"}
+]
+```
+
+Each item in the list is a dictionary with two keys - `role` and `content`.
+
+| Key | What it means |
+|-----|--------------|
+| `role` | who said this - either `"user"` or `"assistant"` |
+| `content` | what was actually said |
+
+The AI reads this list and knows exactly who said what and in what order.
 
 ---
 
-### Part 2 - API Key setup
+### Part 2 - Adding your message
 
 ```python
-load_dotenv()
-
-client = Groq(
-    api_key=os.getenv("GROQ_API_KEY")
+chat_history.append(
+    {
+        "role": "user",
+        "content": user_input
+    }
 )
 ```
 
+Before sending anything to the AI, we first save your message into `chat_history`.
+
+`.append()` adds a new item to the end of the list. So every time you type something, it gets added as a new dictionary with `role: user`.
+
 ```mermaid
 flowchart LR
-    A["📄 .env file\nGROQ_API_KEY=abc123"]:::blue -->|load_dotenv reads it| B["🐍 Python memory\nkey is now loaded"]:::purple -->|os.getenv gets it| C["🔑 Groq client\nnow has the key"]:::green
+    A["💬 You type\n'What is Python?'"]:::blue -->|append| B["📋 chat_history\n...\n{'role': 'user', 'content': 'What is Python?'}"]:::purple
 
     classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
     classDef purple fill:#2d1b4e,stroke:#8b5cf6,color:#c4b5fd
-    classDef green fill:#1a3a2a,stroke:#34d399,color:#6ee7b7
 ```
-
-**Why not just write the key directly in the code?**
-
-Because if you share your code on GitHub, everyone can see your key. People steal keys and use them to send thousands of API calls on your account. Always put keys in a `.env` file and add `.env` to your `.gitignore`.
-
-`load_dotenv()` reads the `.env` file and loads everything inside it into Python's memory.
-
-`os.getenv("GROQ_API_KEY")` then fetches the key by name and passes it to the Groq client.
-
-The `client` is now your connection to the Groq API. Ready to use.
 
 ---
 
-### Part 3 - The chat loop
-
-```python
-while True:
-    user_input = input("You: ")
-
-    if user_input.lower() == "exit":
-        print("Bot: Goodbye!")
-        break
-```
-
-```mermaid
-flowchart TD
-    A["🔁 Loop starts\nwhile True"]:::blue --> B["💬 Wait for you to type\ninput 'You: '"]:::purple --> C{"Did you type 'exit'?"}:::teal
-    C -->|yes| D["🛑 Print 'Goodbye'\nand stop the loop"]:::red
-    C -->|no| E["✅ Continue\nsend to AI"]:::green --> A
-
-    classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
-    classDef purple fill:#2d1b4e,stroke:#8b5cf6,color:#c4b5fd
-    classDef teal fill:#0f3030,stroke:#2dd4bf,color:#99f6e4
-    classDef red fill:#3a0f0f,stroke:#ef4444,color:#fca5a5
-    classDef green fill:#1a3a2a,stroke:#34d399,color:#6ee7b7
-```
-
-`while True` means - keep running forever until we say stop.
-
-`input("You: ")` shows the text "You: " on screen and waits for you to type something. Whatever you type gets saved in `user_input`.
-
-`user_input.lower() == "exit"` - the `.lower()` part converts what you typed to lowercase first. So whether you type "EXIT" or "Exit" or "exit" it will all match. When it matches - `break` stops the loop.
-
----
-
-### Part 4 - Sending the message
+### Part 3 - Sending the full history
 
 ```python
 response = client.chat.completions.create(
     model="llama-3.3-70b-versatile",
-    messages=[
-        {
-            "role": "user",
-            "content": user_input
-        }
-    ]
+    messages=chat_history
 )
-
-print("Bot:", response.choices[0].message.content)
 ```
 
-This is the main part. This is where you actually talk to the AI.
+Notice what changed here from the old code.
+
+Old code sent only the current message:
+```python
+messages=[{"role": "user", "content": user_input}]
+```
+
+New code sends the whole history:
+```python
+messages=chat_history
+```
+
+This is how the AI remembers. We are not storing memory inside the AI - we are just sending it the full conversation every single time. The AI reads it all fresh and replies knowing everything that was said before.
 
 ```mermaid
 flowchart TD
-    A["📤 client.chat.completions.create\nsend message to Groq API"]:::blue
-    A --> B["🧠 model: llama-3.3-70b-versatile\nwhich AI model to use"]:::purple
-    A --> C["💬 messages list\nyour chat history"]:::teal
-    C --> D["role: user\ncontent: what you typed"]:::gray
-    B & D --> E["⏳ Groq processes it\nLLaMA thinks and replies"]:::purple
-    E --> F["📥 response object\ncomes back"]:::blue
-    F --> G["response.choices[0].message.content\nthe actual reply text"]:::green
-    G --> H["🖨️ print to screen"]:::green
+    HIST["📋 chat_history\nmessage 1 - user\nmessage 2 - assistant\nmessage 3 - user\nmessage 4 - assistant\nmessage 5 - user 👈 latest"]:::purple
 
-    classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
+    HIST -->|sent to Groq every time| API["🌐 Groq API\nreads full history\nunderstands context"]:::blue
+    API --> REPLY["🤖 Smart reply\nknows everything said before"]:::green
+
     classDef purple fill:#2d1b4e,stroke:#8b5cf6,color:#c4b5fd
-    classDef teal fill:#0f3030,stroke:#2dd4bf,color:#99f6e4
-    classDef gray fill:#252535,stroke:#4a4a6a,color:#c0c0d8
+    classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
     classDef green fill:#1a3a2a,stroke:#34d399,color:#6ee7b7
 ```
 
-**Breaking down `response.choices[0].message.content`**
+---
 
-This looks confusing but it is just going deeper into an object step by step.
+### Part 4 - Saving the bot reply
 
-| Part | What it means |
-|------|--------------|
-| `response` | the full reply from Groq |
-| `.choices` | a list of possible replies (usually just 1) |
-| `[0]` | take the first one |
-| `.message` | the message inside that choice |
-| `.content` | the actual text of the reply |
+```python
+bot_reply = response.choices[0].message.content
 
-Think of it like opening a package. `response` is the box. `.choices[0]` is the item inside. `.message.content` is the thing written on the item.
+chat_history.append(
+    {
+        "role": "assistant",
+        "content": bot_reply
+    }
+)
+
+print("Bot:", bot_reply)
+```
+
+After we get the reply we do two things.
+
+First we save it in `bot_reply` so we can use it twice without writing `response.choices[0].message.content` two times.
+
+Then we append it to `chat_history` with `role: assistant`. This is important - if we skip this step, the AI will not remember its own previous answers either.
+
+```mermaid
+flowchart LR
+    A["📥 response comes back\nfrom Groq"]:::blue -->|extract text| B["bot_reply\n'Python is a language...'"]:::teal
+    B -->|append to history| C["📋 chat_history\n{'role': 'assistant',\n'content': 'Python is...'}"]:::purple
+    B -->|print| D["🖨️ Bot: Python is a language..."]:::green
+
+    classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
+    classDef teal fill:#0f3030,stroke:#2dd4bf,color:#99f6e4
+    classDef purple fill:#2d1b4e,stroke:#8b5cf6,color:#c4b5fd
+    classDef green fill:#1a3a2a,stroke:#34d399,color:#6ee7b7
+```
+
+---
+
+## How memory actually works
+
+Here is the important thing to understand. **The AI has no memory of its own.**
+
+Every time you send a message, the AI starts completely fresh. It does not store your conversation anywhere. We are the ones keeping the list and re-sending everything each time.
+
+```mermaid
+flowchart TD
+    TURN1["🔁 Turn 1"]:::label
+    TURN1 --> S1["We send: message 1"]:::blue --> R1["AI replies: reply 1"]:::green
+
+    TURN2["🔁 Turn 2"]:::label
+    TURN2 --> S2["We send: message 1 + reply 1 + message 2"]:::blue --> R2["AI replies: reply 2"]:::green
+
+    TURN3["🔁 Turn 3"]:::label
+    TURN3 --> S3["We send: message 1 + reply 1 + message 2 + reply 2 + message 3"]:::blue --> R3["AI replies: reply 3"]:::green
+
+    classDef label fill:#252535,stroke:#4a4a6a,color:#c0c0d8,font-weight:bold
+    classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
+    classDef green fill:#1a3a2a,stroke:#34d399,color:#6ee7b7
+```
+
+Every turn we send a little more. The list keeps growing. That is why a very long conversation costs more - more tokens are being sent each time.
 
 ---
 
@@ -235,19 +275,20 @@ Think of it like opening a package. `response` is the box. `.choices[0]` is the 
 
 ```mermaid
 flowchart TD
-    START["▶️ Code starts running"]:::gray
-    START --> LOAD["📄 .env file loaded\nAPI key ready"]:::blue
-    LOAD --> CLIENT["🔑 Groq client created\nconnection ready"]:::blue
-    CLIENT --> PRINT["🖨️ 'Chatbot Started' printed"]:::teal
-    PRINT --> LOOP["🔁 Loop begins\nwaiting for input"]:::purple
-    LOOP --> INPUT["💬 You type something"]:::gray
-    INPUT --> CHECK{"exit?"}:::teal
-    CHECK -->|yes| BYE["👋 'Goodbye' printed\nchatbot stops"]:::red
-    CHECK -->|no| API["🌐 Message sent to Groq API\nwith your text and model name"]:::purple
-    API --> WAIT["⏳ AI thinks\n..."]:::gray
-    WAIT --> REPLY["📥 Reply comes back\nas a response object"]:::blue
-    REPLY --> SHOW["🖨️ response.choices[0].message.content\nprinted on screen"]:::green
-    SHOW --> LOOP
+    START["▶️ Code starts"]:::gray
+    START --> LOAD["📄 .env loaded\nGroq client ready"]:::blue
+    LOAD --> HIST["📋 chat_history = empty list"]:::purple
+    HIST --> LOOP["🔁 Loop begins"]:::gray
+    LOOP --> INPUT["💬 You type something"]:::blue
+    INPUT --> EXIT{"typed exit?"}:::teal
+    EXIT -->|yes| BYE["👋 Loop stops"]:::red
+    EXIT -->|no| APP1["📋 Append your message\nrole: user"]:::purple
+    APP1 --> API["🌐 Send full chat_history\nto Groq API"]:::blue
+    API --> WAIT["⏳ AI reads everything\nand replies"]:::gray
+    WAIT --> SAVE["💾 Save reply in bot_reply"]:::teal
+    SAVE --> APP2["📋 Append bot reply\nrole: assistant"]:::purple
+    APP2 --> PRINT["🖨️ Print the reply"]:::green
+    PRINT --> LOOP
 
     classDef gray fill:#252535,stroke:#4a4a6a,color:#c0c0d8
     classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
@@ -263,38 +304,36 @@ flowchart TD
 
 | Word | Simple meaning |
 |------|--------------|
-| API | a way for two programs to talk to each other |
-| Groq | a platform that runs AI models really fast |
-| LLaMA 3.3 70B | a powerful open-source AI model made by Meta |
-| `.env` file | a hidden file where you store secret keys |
-| `load_dotenv()` | reads your `.env` file and loads the keys |
-| `os.getenv()` | fetches a specific key from memory by name |
-| `client` | your connection to the Groq API |
-| `while True` | a loop that runs forever until you say break |
-| `break` | stops the loop |
-| `input()` | pauses the code and waits for you to type |
-| `response` | the full reply object that comes back from Groq |
-| `.choices[0]` | the first reply option in the response |
-| `.message.content` | the actual text of the AI's reply |
-| `model` | which AI brain you are using to answer |
+| `chat_history` | a list that stores all messages in order |
+| `.append()` | adds a new item to the end of a list |
+| `role` | who said a message - either user or assistant |
+| `content` | the actual text of the message |
+| `bot_reply` | a variable to hold the AI's reply text |
+| Context | everything the AI can read in one go |
+| Token | a small piece of text - sending more history means more tokens |
 
 ---
 
 ## What is missing from this chatbot?
 
-This chatbot does not remember anything. Every message you send starts fresh. The AI does not know what you said two messages ago.
+This chatbot can talk and remember. But it cannot do anything.
 
 ```mermaid
-flowchart LR
-    A["You: What is Python?"]:::blue --> B["Bot: Python is a language..."]:::green
-    C["You: Give me an example"]:::blue --> D["Bot: Example of what? 🤔\nit forgot the first message"]:::red
+flowchart TD
+    A["❌ This chatbot - no tools"]:::label
 
+    A1["You: What is the weather in Islamabad?"]:::blue --> B1["Bot: I don't know\nI have no way to check 🤷"]:::red
+    A2["You: What is 1847 x 293?"]:::blue --> B2["Bot: I think it's... maybe...\ncould be wrong 🤔"]:::red
+    A3["You: Search the web for latest AI news"]:::blue --> B3["Bot: I cannot access\nthe internet ❌"]:::red
+
+    classDef label fill:#3a0f0f,stroke:#ef4444,color:#fca5a5,font-weight:bold
     classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
-    classDef green fill:#1a3a2a,stroke:#34d399,color:#6ee7b7
     classDef red fill:#3a0f0f,stroke:#ef4444,color:#fca5a5
 ```
 
-This is called having no **memory**. The next guide will show how to fix this by sending the full chat history with every message.
+This is called having no **tools**. The AI can only talk — it cannot take real actions in the world.
+
+The next guide will show how to give your chatbot real powers by connecting it to tools like a calculator, a clock, and a weather checker.
 
 ---
 
@@ -302,8 +341,8 @@ This is called having no **memory**. The next guide will show how to fix this by
 
 ```mermaid
 flowchart TD
-    A["✅ You finished this guide\ngreat job!"]:::done
-    A --> B["🧠 Next - Add Memory to your Chatbot\nlearn about chat history and multi-turn conversations"]:::blue
+    A["✅ You finished this guide\nyour chatbot now remembers!"]:::done
+    A --> B["🛠️ Next - Add Tools to your Chatbot\ngive your AI the power to take real actions\nweather · calculator · web search"]:::blue
 
     classDef done fill:#1a3a2a,stroke:#34d399,color:#6ee7b7
     classDef blue fill:#1e3a5f,stroke:#4a8fd4,color:#a8d4ff
