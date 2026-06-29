@@ -1,6 +1,6 @@
 # 🤖 Building Your First AI Chatbot with Groq
 
-I made this because after learning what an LLM is, the next question is obvious - okay but how do I actually talk to one with code? This is the simplest way to do it. No extra stuff. Just a working chatbot in under 20 lines of Python.
+I made this because after learning what an LLM is, the next question is obvious okay but how do I actually talk to one with code? This is the simplest way to do it. No extra stuff. Just a working chatbot in under 20 lines of Python.
 
 ---
 
@@ -23,7 +23,7 @@ I made this because after learning what an LLM is, the next question is obvious 
 
 A simple chatbot that runs in your terminal. You type something. It replies. That is it.
 
-Under the hood it is using **Groq** - a platform that lets you call powerful AI models like LLaMA 3.3 through an API. Think of it like texting an AI - you send a message, it sends one back.
+Under the hood it is using **Groq** a platform that lets you call powerful AI models like LLaMA 3.3 through an API. Think of it like texting an AI you send a message, it sends one back.
 
 ```mermaid
 flowchart LR
